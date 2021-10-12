@@ -3,3 +3,16 @@ server_name aha.top ~[a-z].aha.top;    nginx server_name匹配规则   匹配正
 nginx 解析域名 他会去反解析成ip 但是他不会改host啊
 
 Proxy_set_header Host $Host  都是会打到后段 但是后段获取host的区别   如果是反向到后端nginx nginx是要获取host这个只来匹配server_name的
+
+------------------------------------------
+curl -XPUT -H 'host:test.com' -H 'source:5' http://127.0.0.1/index/type/id -d '{"message":"这个一个body参数"}'
+location / {
+                if ($http_source = "5"){    #这里的 http_source对应上面的header头里面的source
+                return 200 "ok";
+            }
+            if ($http_source != "5"){
+                return 300 "no";
+            }
+        }
+-------------------------------------------
+
