@@ -34,7 +34,7 @@ Consumer Group：消费者组，一个topic可以有多个消费者同时消费�
 同一个分区内的消息只能被同一个组中的一个消费者消费，当消费者数量多于分区数量时，多于的消费者空闲（不能消费数据）。
 组内的所有消费者协调在一起来消费订阅主题(subscribed topics)的所有分区(partition)。当然，每个分区只能由同一个消费组内的一个consumer来消费。
 
-上面2句话的意思就是说 创建一个Consumer Group 是消费整个topic里面的数据的 消费组里面的消费者针对着一个分区 所以多个消费组肯定实惠消费重复数据的
+上面2句话的意思就是说 创建一个Consumer Group 是消费整个topic里面的数据的 消费组里面的每个消费者针对着一个分区 所以多个消费组肯定是会消费重复数据的
 
 同一个Consumer Group 可以分布在不同的机器 如果是2个Consumer Group那肯定会重复消费   但是增加Consumer Group但是是相同的Consumer Group id那就是相互抢资源 你在工作 别人只能休息
 
