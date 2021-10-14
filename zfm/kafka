@@ -39,7 +39,7 @@ Consumer Group：消费者组，一个topic可以有多个消费者同时消费�
 同一个Consumer Group 可以分布在不同的机器 如果是2个Consumer Group那肯定会重复消费   但是增加Consumer Group但是是相同的Consumer Group id那就是相互抢资源 你在工作 别人只能休息(多个机器造成多个消费组,但是id一样)
 
 
-
+Consumer Group创建了 那就是针对一个topic Consumer Group里面的每个消费者就是针对每个分区 一对一关系
 
 -----------------docker 安装 kafka ---------------------
 这里使用了wurstmeister/kafka和wurstmeister/zookeeper这两个版本的镜像
