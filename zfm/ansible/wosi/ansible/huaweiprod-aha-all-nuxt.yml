@@ -1,0 +1,14 @@
+---
+- hosts: '{{ hosts_name }}'
+  serial: "{{ USE_SERIAL }}" 
+  vars:
+    department: php
+    AppId: mkt
+    env: '{{ env_name }}'
+    ans_apollo_env: '{{ apollo_env_name }}'
+    ans_apollo_namespace: '{{ ans_apollo_namespace_name }}'
+    ans_project_name: '{{ ans_project_name_name }}'
+    aha_project_name: '{{ aha_project_name_name }}'
+    origin_dir: '{{ origin_dir_name }}'
+  roles:
+    - nuxt_template

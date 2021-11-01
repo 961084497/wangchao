@@ -1,0 +1,12 @@
+---
+- hosts: '{{ hosts_name }}'
+  vars:
+    department: '{{ department_name }}'
+    AppId: '{{ appid_name }}'
+    env: '{{ env_name }}'
+    ans_project_name: '{{ ans_pro_name_name }}'
+    ans_src_dir: '{{ ans_src_dir_name }}'
+    ans_dist_dir: '{{ ans_dist_dir_name }}'
+  roles:
+    - pm2-role-template
+...

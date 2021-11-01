@@ -1,0 +1,11 @@
+---
+- hosts: '{{ hosts_name }}'
+  vars:
+    department: php
+    AppId: openapi
+    env: '{{ env_name }}'
+    aha_project_name: "aha-bpmapi"
+    ans_project_name: "hjm_bpmapi"
+  roles:
+    - php_role_template
+...

@@ -1,0 +1,11 @@
+---
+- hosts: '{{ hosts_name }}'
+  vars:
+    department: '{{ department_name }}'
+    AppId: '{{ appid_name }}'
+    env: '{{ env_name }}'
+    ans_project_name: '{{ ans_pro_name }}'
+    srcdir_name: '{{ srcdir_name }}'
+  roles:
+    - node_role_template 
+...

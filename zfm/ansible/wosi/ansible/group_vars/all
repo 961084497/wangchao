@@ -1,0 +1,3 @@
+ans_jenkins_workspace: "/data/jenkins/workspace"
+ans_git_workspace: "/data/jenkins/git_data"
+ans_keep_releases: 8

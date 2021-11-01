@@ -1,0 +1,12 @@
+---
+- hosts: "{{ hosts_name }}"
+  serial: "{{ USE_SERIAL }}"
+  vars:
+    ans_project_name: "{{ JOB_NAME }}"
+    aha_project_name: "{{ aha_project_name_name }}"
+    ans_java_test_url: "{{ ans_java_test_url_name }}"
+    nacos_servername: "{{ nacos_name }}"
+    nacos_port_name: "{{ nacos_port }}"
+  roles:
+    - java_template
+...

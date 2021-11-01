@@ -1,0 +1,60 @@
+---
+- name: "/data/jenkins/git_data/apollo.py {{ department }} {{ env }}  {{ AppId }} {{ ans_apollo_namespace }} {{ ans_jenkins_workspace }}/{{ ans_project_name }}/.env"
+  script: "/data/jenkins/git_data/apollo.py {{ department }} {{ env }}  {{ AppId }} {{ ans_apollo_namespace }} {{ ans_jenkins_workspace }}/{{ ans_project_name }}/.env"
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- set_fact:
+    ROLLBACK_VERSION: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: "create backup dir"
+  file: 
+    state: directory
+    path: /opt/hjm/{{ aha_project_name }}/release/{{ aha_project_name }}.{{ ROLLBACK_VERSION }}
+    recurse: yes
+    owner: hjmrunning
+    group: hjmrunning
+  become: yes
+
+- name: "copy .env to {{ ansible_hostname }} in /opt/hjm/{{ aha_project_name }} /opt/hjm/{{ aha_project_name }}/release/{{ aha_project_name }}.{{ ROLLBACK_VERSION }}/.env"
+  copy:
+    src: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}/.env"
+    dest: "/opt/hjm/{{ aha_project_name }}/release/{{ aha_project_name }}.{{ ROLLBACK_VERSION }}/.env"
+
+
+- name: "copy run.sh to {{ ansible_hostname }} in /opt/hjm/{{ aha_project_name }}"
+  copy:
+    src: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}/run.sh"
+    dest: /opt/hjm/{{ aha_project_name }}/run.sh
+    mode: 0755
+
+
+  # upload code
+- name: "RSYNC {{ aha_project_name }} to {{ ansible_hostname }} {{ ans_jenkins_workspace }}/{{ ans_project_name }}/{{ aha_project_name }}"
+  synchronize:
+    src: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}/"
+    dest: "/opt/hjm/{{ aha_project_name }}/release/{{ aha_project_name }}.{{ ROLLBACK_VERSION }}/"
+    recursive: yes
+    delete: yes
+    archive: yes
+    compress: yes
+
+- name: "创建软链"
+  shell: "cd /opt/hjm/{{ aha_project_name }} && ln -snf release/{{ aha_project_name }}.{{ ROLLBACK_VERSION }} current && chown -R hjmrunning.hjmrunning current"
+
+
+- name: "restart {{ aha_project_name }} service main param: {{ main_param }}"
+  shell: cd /opt/hjm/{{ aha_project_name }} && /bin/bash run.sh restart {{ main_param }}
+  register: runresult
+
+- debug: var=runresult.stdout
+
+#- name: Clean up releases
+#  shell: ls -1dt /opt/hjm/{{ aha_project_name }}/release/* | tail -n +{{ ans_keep_releases | int + 1 }} | xargs rm -rf
+#  when: ans_keep_releases > 0 
+
+...
+
+

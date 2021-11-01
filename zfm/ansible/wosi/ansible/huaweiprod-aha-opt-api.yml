@@ -1,0 +1,11 @@
+---
+- hosts: '{{ hosts_name }}'
+  vars:
+    department: php
+    AppId: mkt
+    env: '{{ env_name }}'
+    aha_project_name: "optapi"
+    ans_project_name: "aha-mkt-optapi"
+  roles:
+    - php_role_template
+...

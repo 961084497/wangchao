@@ -1,0 +1,13 @@
+---
+- hosts: aha-logstash-server
+  vars:
+    department: data
+    AppId: udw
+    env: prod
+    main_param: "{{ main_param }}"
+    ans_project_name: "bi-aha-log-stash"
+    ans_apollo_namespace: "aha-log-stash"
+    aha_project_name: "aha-log-stash"
+  roles:
+    - logstash_template
+...

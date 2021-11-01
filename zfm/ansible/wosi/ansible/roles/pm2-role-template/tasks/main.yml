@@ -1,0 +1,58 @@
+---
+- name: "/data/jenkins/git_data/apollo.py {{ department }} {{ env }}  {{ AppId }} {{ ans_project_name }} {{ ans_jenkins_workspace }}/{{ ans_project_name }}/.env"
+  script: "/data/jenkins/git_data/apollo.py {{ department }} {{ env }}  {{ AppId }} {{ ans_project_name }} {{ ans_jenkins_workspace }}/{{ ans_project_name }}/.env"
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: "cd {{ ans_jenkins_workspace }}/{{ ans_project_name }} && source /etc/profile && /usr/local/node-v10.14.2-linux-x64/bin/npm run build"
+  shell: source /etc/profile && /usr/local/node-v10.14.1-linux-x64/bin/npm run build
+  args:
+    chdir: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}"
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: "create /opt/hjm/{ ans_project_name }}/release dir"
+  shell: mkdir -pv /opt/hjm/{{ ans_project_name }}/release
+  become: yes
+
+- name: "create /opt/hjm/{{ ans_project_name }}/{{ ans_dist_dir }} dir"
+  shell: mkdir -pv /opt/hjm/{{ ans_project_name }}/{{ ans_dist_dir }}
+  become: yes
+
+- name: "change /opt/hjm/{{ ans_project_name }} owner group"
+  file: 
+    path: "/opt/hjm/{{ ans_project_name }}"
+    recurse: yes
+    owner: hjmrunning
+    group: hjmrunning
+  become: yes
+
+
+
+- name: "backup dist dir"
+  shell: tar -zcf ./release/{{ ans_dist_dir }}.`date +%Y%m%d%H%M`.tar.gz {{ ans_dist_dir }}/
+  args:
+    chdir: "/opt/hjm/{{ ans_project_name }}"
+
+  
+- name: "Synchronize files in the dist directory to the remote {{ ansible_hostname }}"
+  synchronize:
+    src: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}/{{ ans_src_dir }}/"
+    dest: "/opt/hjm/{{ ans_project_name }}/{{ ans_dist_dir }}/"
+    recursive: yes
+    delete: no
+    archive: yes
+    compress: yes
+
+  
+
+- name: "重新启动进程"
+  shell: source /etc/profile && npm run prod
+  args:
+    chdir: "/opt/hjm/{{ ans_project_name }}/{{ ans_dist_dir }}"
+
+- name: "清理release过期的备份目录"
+  shell: ls -1dt /opt/hjm/{{ ans_project_name }}/release/* | tail -n +{{ ans_keep_releases | int + 1 }} | xargs rm -rf
+  when: ans_keep_releases > 0
+
+...

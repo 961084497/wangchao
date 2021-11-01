@@ -1,0 +1,114 @@
+---
+- name: "/data/jenkins/git_data/apollo.py {{ department }} {{ env }}  {{ AppId }} {{ ans_project_name }} {{ ans_jenkins_workspace }}/{{ ans_project_name }}/.env"
+  script: "/data/jenkins/git_data/apollo.py {{ department }} {{ env }}  {{ AppId }} {{ ans_project_name }} {{ ans_jenkins_workspace }}/{{ ans_project_name }}/.env"
+  delegate_to: 127.0.0.1
+  run_once: true
+  
+# check  composer.json file updated
+- name: "查看git拉取下来的源码中是否存在composer.json文件"
+  stat: 
+    path: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}/composer.json"
+  register: ans_composer_json
+  delegate_to: 127.0.0.1
+  run_once: true
+
+#- name: "2、查看composer.lock文件内容是否变化"
+#  shell: diff {{ ans_jenkins_workspace }}/{{ env }}-{{ ans_project_name }}/composer.lock  /data/locks/{{ env }}-{{ ans_project_name }}/composer.lock | wc -l
+#  ignore_errors: yes
+#  register: ans_composer_lock
+#  delegate_to: 127.0.0.1
+#  run_once: true
+
+#- debug: var=ans_composer_lock  verbosity=0
+
+- name: "composer.lock文件发生变化执行composer install"
+  command: "/usr/local/bin/composer install"
+  args:
+    chdir: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}"
+  delegate_to: 127.0.0.1
+  when: ans_composer_json.stat.exists == true
+  run_once: true
+#  when: ans_composer_json.stat.exists == true and ans_composer_lock.stdout != "0"
+
+
+#- name: "4、拷贝composer.lock文件到/data/locks/{{ env }}-{{ ans_project_name }}目录下"
+#  command: "cp {{ ans_jenkins_workspace }}/{{ env }}-{{ ans_project_name }}/composer.lock  /data/locks/{{ env }}-{{ ans_project_name }}/"
+#  delegate_to: 127.0.0.1
+#  run_once: true
+
+- name: "查看storage目录是否存在"
+  stat: 
+    path: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}/storage"
+  register: ans_storage_dir
+  delegate_to: 127.0.0.1
+  run_once: true
+
+# delete storage path
+- name: "删除 {{ ans_jenkins_workspace }}/{{ ans_project_name }}/storage 目录"
+  file: 
+    path: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}/storage" 
+    state: absent
+  delegate_to: 127.0.0.1
+  ignore_errors: yes
+  when: ans_storage_dir.stat.exists == true
+
+- name: "创建/opt/hjm/{{ aha_project_name }}/{releases,storage}目录"
+  shell: mkdir -p /opt/hjm/{{ aha_project_name }}/{releases,storage}
+
+- name: "创建/opt/hjm/{{ aha_project_name }}/storage/{app,framework,logs}目录"
+  shell: mkdir -p /opt/hjm/{{ aha_project_name }}/storage/{app,framework,logs}
+
+- name: "创建 storage/framework/{cache,views}"
+  shell: mkdir -p /opt/hjm/{{ aha_project_name }}/storage/framework/{cache,views}
+
+- name: "修改/opt/hjm/{{ aha_project_name }}/storage权限为777"
+  shell: chmod -R 777 /opt/hjm/{{ aha_project_name }}/storage
+  become: true
+
+- name: "获取收集最新代码存放目录名称"
+  set_fact:
+    ans_release_version: "{{ lookup('pipe', 'date +%Y%m%d%H%M%S') }}"
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: "创建/opt/hjm/{{ aha_project_name }}/releases/{{ ans_release_version }}目录"
+  shell: mkdir -pv /opt/hjm/{{ aha_project_name }}/releases/{{ ans_release_version }}
+
+# upload code
+- name: "将{{ ans_jenkins_workspace }}/{{ ans_project_name }}/目录下文件同步到/opt/hjm/{{ aha_project_name }}/releases/{{ ans_release_version }}目录下"
+  synchronize:
+    src: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}/"
+    dest: "/opt/hjm/{{ aha_project_name }}/releases/{{ ans_release_version }}"
+    recursive: yes
+    delete: yes
+    archive: yes
+    compress: yes
+
+# change current link
+- name: "创建current的软链接"
+  file:
+    state: link
+    path: "/opt/hjm/{{ aha_project_name }}/current"
+    src: "/opt/hjm/{{ aha_project_name }}/releases/{{ ans_release_version }}"
+
+# change storage link
+- name: "创建current/storage软链接"
+  file:
+    state: link
+    path: "/opt/hjm/{{ aha_project_name }}/current/storage"
+    src: "/opt/hjm/{{ aha_project_name }}/storage"
+  become: true
+
+- name: "修改/opt/hjm/{{ aha_project_name }}/current/storage目录拥有者和所属组都为hjmrunning"
+  shell: chown -R hjmrunning:hjmrunning /opt/hjm/{{ aha_project_name }}/current/storage
+  become: true
+
+- name: "重新加载php-fpm守护进程"
+  service: name=php-fpm state=reloaded
+  become: true
+
+- name: "清理releases过期的备份目录"
+  shell: ls -1dt /opt/hjm/{{ aha_project_name }}/releases/* | tail -n +{{ ans_keep_releases | int + 1 }} | xargs rm -rf
+  when: ans_keep_releases > 0
+
+...

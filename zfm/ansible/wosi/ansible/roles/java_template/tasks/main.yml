@@ -1,0 +1,86 @@
+---
+
+- set_fact:
+    ROLLBACK_VERSION: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: "1、创建必要的目录"
+  file:
+    state: directory
+    path: "{{ item.name }}"
+    owner: hjmrunning
+    group: hjmrunning
+    #recurse: yes
+  with_items:
+    - { name: "/data/log" }
+    - { name: "/opt/data" }
+    - { name: "/opt/hjm/{{ aha_project_name }}/release/{{ aha_project_name }}.jar{{ ROLLBACK_VERSION }}" }
+  become: yes
+
+- name: "开始优雅发布 下线机器nacos注册 servername ip port"
+  shell: "sh /data/jenkins/git_data/JAVA/unregister.sh {{ nacos_servername }} {{ ansible_default_ipv4['address'] }} {{ nacos_port_name }}"
+  register: checknacos
+  delegate_to: 127.0.0.1
+
+- name: "是否nacos正常下线"
+  debug: var=checknacos.stdout
+
+- name: "2、推送run.sh"
+  copy:
+    src: "{{ ans_git_workspace }}/JAVA/run.sh.j2"
+    dest: "/opt/hjm/{{ aha_project_name }}/run.sh"
+    force: yes
+    mode: 0750
+
+- name: "3、判断{{ aha_project_name }}是否运行..."
+  shell: "ps -ef | grep {{ aha_project_name }} | grep -v grep | wc -l"
+  register: ans_project_processes
+
+- name: "4、停止/opt/hjm/{{ aha_project_name }}"
+  shell: "/bin/bash run.sh stop {{ aha_project_name }}"
+  args:
+    chdir: "/opt/hjm/{{ aha_project_name }}"
+  ignore_errors: True
+  when: ans_project_processes is defined
+
+- name: "5、上传到/opt/hjm/{{ aha_project_name }}/release/{{ ROLLBACK_VERSION }}"
+  copy:
+    src: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}/build/libs/{{ aha_project_name }}.jar"
+    dest: "/opt/hjm/{{ aha_project_name }}/release/{{ aha_project_name }}.jar{{ ROLLBACK_VERSION }}/"
+    force: yes
+    mode: 0755
+  register: copy_jar_done
+
+- name: "6、创建软链"
+  shell: "cd /opt/hjm/{{ aha_project_name }} && ln -snf release/{{ aha_project_name }}.jar{{ ROLLBACK_VERSION }} current"
+
+- name: "7、启动/opt/hjm/{{ aha_project_name }}"
+  shell: "source /etc/profile  && ./run.sh start {{ aha_project_name }}"
+  args:
+    chdir: /opt/hjm/{{ aha_project_name }}
+  when: copy_jar_done is defined
+
+#- name: "8、sleep 50"
+#  shell: "sleep 50"
+
+#- name: "9、See index.jsp page"
+#  shell: "curl  {{ ans_java_test_url }}"
+#  register: jsp
+
+- name: "9、See index.jsp page"
+  shell: "curl  {{ ans_java_test_url }}"
+  register: jsp
+  until: jsp is succeeded
+  retries: 20
+  delay: 3
+
+- name: "sleep 5s again"
+  shell: "sleep 5"
+
+- debug: var=jsp.stdout
+
+- name: "10、清理历史包，保留{{ ans_keep_releases }}个"
+  shell: ls -1dt /opt/hjm/{{ aha_project_name }}/release/* | tail -n +{{ ans_keep_releases | int + 1 }} | xargs rm -rf
+  when: ans_keep_releases > 0
+...

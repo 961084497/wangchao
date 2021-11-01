@@ -1,0 +1,92 @@
+---
+- name: "/data/jenkins/git_data/apollo.py {{ department }} {{ ans_apollo_env }}  {{ AppId }} {{ ans_apollo_namespace }} {{ ans_jenkins_workspace }}/{{ ans_project_name }}/config/index.js nuxt下载配置中心config.js文件到{{ ans_jenkins_workspace }}/{{ ans_project_name }}/"
+  script: "/data/jenkins/git_data/apollo.py {{ department }} {{ ans_apollo_env }}  {{ AppId }} {{ ans_apollo_namespace }} {{ ans_jenkins_workspace }}/{{ ans_project_name }}/config/index.js nuxt"
+  delegate_to: 127.0.0.1
+  run_once: true
+#--------------------------  判断编译方式 start  -------------------------
+- name: "{{ ans_project_name }} generate or update the node_modules dependency package /usr/local/node-v10.14.1-linux-x64/bin/npx yarn"
+  shell: . /etc/profile;/usr/local/node-v10.14.1-linux-x64/bin/npx yarn
+  args: 
+    chdir: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}"
+  delegate_to: 127.0.0.1
+  when: ans_project_name_name != "aha-mkt-nuxtweb"     #####ans_project_name_name 是从外面传过来的变量
+ 
+- name: "{{ ans_project_name }} generate or update the node_modules dependency package /usr/local/node-v10.14.1-linux-x64/bin/yarn"
+  shell: . /etc/profile;/usr/local/yarn-v1.9.4/bin/yarn
+  args: 
+    chdir: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}"
+  delegate_to: 127.0.0.1
+  when: ans_project_name_name == "aha-mkt-nuxtweb"
+#--------------------------   判断编译方式 end ------------------------------------
+- name: "{{ ans_project_name }} package generation  directory"
+  shell: . /etc/profile;/usr/local/node-v10.14.1-linux-x64/bin/npm run build
+  args:
+    chdir: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}"
+  delegate_to: 127.0.0.1
+
+#--------------------------- 创建目录判断  start  -----------------------
+- name: "create /opt/hjm/{ aha_project_name }}/{current,release} dir"
+  shell: mkdir -pv /opt/hjm/{{ aha_project_name }}/{current/public,release}
+  become: yes
+  when: ans_project_name_name != "aha-mkt-nuxtweb"
+
+- name: "create /opt/hjm/{ aha_project_name }}/{current,release} dir"
+  shell: mkdir -pv /opt/hjm/{{ aha_project_name }}/{current,release}
+  become: yes
+  when: ans_project_name_name == "aha-mkt-nuxtweb"
+#-----------------------------创建目录判断 end  -----------------------
+
+- name: "修改/opt/hjm/{{ aha_project_name }}"
+  shell: chmod -R 777 /opt/hjm/{{ aha_project_name }}
+  become: true
+
+
+#- name: "backup current dir"
+#  shell: tar -zcf ./release/current.`date +%Y%m%d%H%M`.tar.gz current/
+#  args:
+#    chdir: "/opt/hjm/{{ aha_project_name }}"
+
+#-----------------------------rsync目录判断 start  -----------------------
+  
+- name: "Synchronize files in the dist directory to the remote {{ ansible_hostname }}"
+  synchronize:
+    src: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}/dist/"
+    dest: "/opt/hjm/{{ aha_project_name }}/current/public/{{ origin_dir }}"
+    recursive: yes
+    delete: yes
+    archive: yes
+    compress: yes
+  when: ans_project_name_name != "aha-mkt-nuxtweb"
+
+- name: "Synchronize files in the dist directory to the remote {{ ansible_hostname }}"
+  synchronize:
+    src: "{{ ans_jenkins_workspace }}/{{ ans_project_name }}/"
+    dest: "/opt/hjm/{{ aha_project_name }}/current/"
+    recursive: yes
+    delete: yes
+    archive: yes
+    compress: yes
+  when: ans_project_name_name == "aha-mkt-nuxtweb"
+
+#-----------------------------rsync目录判断 end  -----------------------
+
+- name: "修改/opt/hjm/{{ aha_project_name }}"
+  shell: chmod -R 777 /opt/hjm/{{ aha_project_name }}
+  become: true
+
+- name: "修改/opt/hjm/{{ aha_project_name }}目录拥有者和所属组都为hjmrunning"
+  shell: chown -R hjmrunning:hjmrunning /opt/hjm/{{ aha_project_name }}
+  become: true
+  
+#------------------------ pm2 启动判断   start----------------
+- name: "重新启动 pm2 进程"
+  shell: source /etc/profile && /usr/local/node-v10.14.1-linux-x64/bin/pm2 restart pm2.json
+  args:
+    chdir: "/opt/hjm/{{ aha_project_name }}/current"
+  when: ans_project_name_name == "aha-mkt-nuxtweb"
+#------------------------ pm2 启动判断   end ----------------------
+- name: "清理release过期的备份目录"
+  shell: ls -1dt /opt/hjm/{{ aha_project_name }}/release/* | tail -n +{{ ans_keep_releases | int + 1 }} | xargs rm -rf
+  when: ans_keep_releases > 0
+
+...

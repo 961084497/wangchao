@@ -1,0 +1,10 @@
+---
+- hosts: "{{ hosts_name }}"
+  serial: "{{ USE_SERIAL }}"
+  vars:
+    ans_project_name: "{{ JOB_NAME }}"
+    aha_project_name: "{{ aha_project_name_name }}"
+    ans_go_test_url: "{{ ans_go_test_url_name }}"
+  roles:
+    - go_template
+...

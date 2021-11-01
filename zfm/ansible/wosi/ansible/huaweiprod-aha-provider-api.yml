@@ -1,0 +1,12 @@
+---
+- hosts: '{{ hosts_name }}'
+  vars:
+    department: php
+    AppId: openapi
+    env: '{{ env_name }}'
+    ans_apollo_namespace: "aha-provider-api"
+    ans_project_name: "aha-provider-api"
+    aha_project_name: "providerapi"
+  roles:
+    - php_role_template
+...
